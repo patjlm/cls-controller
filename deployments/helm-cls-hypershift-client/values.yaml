@@ -36,3 +36,7 @@ pullSecret:
   refreshInterval: "1h"
   clusterSecretStoreName: "gcp-secret-manager"
   gcpSecretName: "default-openshift-pull-secret"
+
+# HostedCluster DNS domains (comma-separated list)
+# The first domain from this list will be used as the base domain for HostedClusters
+hc_dns_domains: ""
