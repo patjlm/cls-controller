@@ -60,6 +60,25 @@ spec:
         data:
           key: {{`{{ .cluster.spec.serviceAccountSigningKey }}`}}
 
+    - name: "htpasswd-secret"
+      description: "Create htpasswd secret for demo authentication (temporary - GCP-275)"
+      resourceManagement:
+        updateStrategy: "in_place"
+      template: |
+        apiVersion: v1
+        kind: Secret
+        metadata:
+          name: htpasswd-secret
+          namespace: clusters-{{`{{ .cluster.id }}`}}
+        type: Opaque
+        stringData:
+          # TEMPORARY: htpasswd authentication for demo purposes only
+          # This will be replaced by Google auth integration (GCP-207)
+          # Default demo credentials: demo / demo123
+          # Generated with: htpasswd -nbB demo demo123
+          htpasswd: |
+            {{`{{ .cluster.spec.htpasswd | default "demo:$2y$05$QX4WIyxTfE2yYbhgPk3UeO3gZzACHsHXYYZbrKEmo.CuariP5ADaK" }}`}}
+
     - name: "named-certificate"
       description: "Create a HostedCluster named certificate for the API server"
       resourceManagement:
@@ -195,32 +214,58 @@ spec:
               # Disable ImageRegistry as GCS buckets not well supported yet. GCP-235
               - ImageRegistry
 
+          # TEMPORARY: htpasswd authentication for demo purposes (GCP-275)
+          # This will be replaced by Google auth integration (GCP-207)
           configuration:
+            authentication:
+              type: IntegratedOAuth
+            oauth:
+              identityProviders:
+              - name: demo-htpasswd
+                type: HTPasswd
+                mappingMethod: claim
+                htpasswd:
+                  fileData:
+                    name: htpasswd-secret
+
+            {{`{{- $certReady := false }}`}}
+            {{`{{- if and .resources (index .resources "named-certificate") }}`}}
+              {{`{{- $cert := index .resources "named-certificate" }}`}}
+              {{`{{- if and $cert.status $cert.status.conditions }}`}}
+                {{`{{- range $cert.status.conditions }}`}}
+                  {{`{{- if and (eq .type "Ready") (eq .status "True") }}`}}
+                    {{`{{- $certReady = true }}`}}
+                  {{`{{- end }}`}}
+                {{`{{- end }}`}}
+              {{`{{- end }}`}}
+            {{`{{- end }}`}}
+            {{`{{- if $certReady }}`}}
             apiServer:
               servingCerts:
                 namedCertificates:
                   - servingCertificate:
                       name: external-api-cert
+            {{`{{- end }}`}}
 
   statusConditions:
     - name: "Applied"
       status: >-
-        {{`{{- if and .resources.namespace (index .resources "pull-secret") (index .resources "signing-key-secret") .resources.hostedcluster -}}`}}
+        {{`{{- if and .resources.namespace (index .resources "pull-secret") (index .resources "signing-key-secret") (index .resources "htpasswd-secret") (index .resources "named-certificate") .resources.hostedcluster -}}`}}
         True
         {{`{{- else -}}`}}
         False
         {{`{{- end }}`}}
       reason: >-
-        {{`{{- if and .resources.namespace (index .resources "pull-secret") (index .resources "signing-key-secret") .resources.hostedcluster -}}`}}
+        {{`{{- if and .resources.namespace (index .resources "pull-secret") (index .resources "signing-key-secret") (index .resources "htpasswd-secret") (index .resources "named-certificate") .resources.hostedcluster -}}`}}
         ResourcesCreated
         {{`{{- else -}}`}}
         ResourcesNotCreated
         {{`{{- end }}`}}
       message: >-
-        {{`{{- if and .resources.namespace (index .resources "pull-secret") (index .resources "signing-key-secret") .resources.hostedcluster -}}`}}
-        All resources created successfully: Namespace clusters-{{`{{ .cluster.id }}`}}, pull-secret, signing-key-secret, and HostedCluster {{`{{ .cluster.name }}`}}
+        {{`{{- if and .resources.namespace (index .resources "pull-secret") (index .resources "signing-key-secret") (index .resources "htpasswd-secret") (index .resources "named-certificate") .resources.hostedcluster -}}`}}
+        All resources created successfully: Namespace clusters-{{`{{ .cluster.id }}`}}, pull-secret, signing-key-secret, htpasswd-secret, named-certificate and HostedCluster {{`{{ .cluster.name }}`}}
         {{`{{- else -}}`}}
-        Waiting for resources (namespace: {{`{{ if .resources.namespace }}✓{{ else }}✗{{ end }}`}}, pull-secret: {{`{{ if (index .resources "pull-secret") }}✓{{ else }}✗{{ end }}`}}, signing-key-secret: {{`{{ if (index .resources "signing-key-secret") }}✓{{ else }}✗{{ end }}`}}, hostedcluster: {{`{{ if .resources.hostedcluster }}✓{{ else }}✗{{ end }}`}})
+        Waiting for resources (namespace: {{`{{ if .resources.namespace }}✓{{ else }}✗{{ end }}`}}, pull-secret: {{`{{ if (index .resources "pull-secret") }}✓{{ else }}✗{{ end }}`}}, signing-key-secret: {{`{{ if (index .resources "signing-key-secret") }}✓{{ else }}✗{{ end }}`}}, htpasswd-secret: {{`{{ if (index .resources "htpasswd-secret") }}✓{{ else }}✗{{ end }}`}}, named-certificate: {{`{{ if (index .resources "named-certificate") }}✓{{ else }}✗{{ end }}`}}, hostedcluster: {{`{{ if .resources.hostedcluster }}✓{{ else }}✗{{ end }}`}})
         {{`{{- end }}`}}
 
     - name: "Available"
