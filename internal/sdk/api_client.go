@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -11,6 +12,9 @@ import (
 
 	"go.uber.org/zap"
 )
+
+// ErrNotFound is returned when the API returns a 404 status code.
+var ErrNotFound = errors.New("resource not found")
 
 // HTTPAPIClient implements APIClient interface using HTTP REST calls for the new simplified API
 type HTTPAPIClient struct {
@@ -69,7 +73,7 @@ func (c *HTTPAPIClient) GetCluster(ctx context.Context, clusterID string) (*Clus
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
-		return nil, fmt.Errorf("cluster %s not found", clusterID)
+		return nil, fmt.Errorf("cluster %s: %w", clusterID, ErrNotFound)
 	}
 
 	if resp.StatusCode != http.StatusOK {
@@ -123,7 +127,7 @@ func (c *HTTPAPIClient) GetClusterStatus(ctx context.Context, clusterID string) 
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
-		return nil, fmt.Errorf("cluster %s not found", clusterID)
+		return nil, fmt.Errorf("cluster %s: %w", clusterID, ErrNotFound)
 	}
 
 	if resp.StatusCode != http.StatusOK {
@@ -167,7 +171,7 @@ func (c *HTTPAPIClient) GetNodePool(ctx context.Context, nodepoolID string) (*No
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
-		return nil, fmt.Errorf("nodepool %s not found", nodepoolID)
+		return nil, fmt.Errorf("nodepool %s: %w", nodepoolID, ErrNotFound)
 	}
 
 	if resp.StatusCode != http.StatusOK {

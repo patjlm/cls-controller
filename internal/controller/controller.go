@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -183,6 +184,12 @@ func (c *Controller) HandleClusterEvent(event *sdk.ClusterEvent) error {
 
 	cluster, err := apiClient.GetCluster(ctx, event.ClusterID)
 	if err != nil {
+		if errors.Is(err, sdk.ErrNotFound) {
+			log.Info("Cluster not found in API, acknowledging event for deleted cluster",
+				zap.String("cluster_id", event.ClusterID),
+			)
+			return nil
+		}
 		log.Error("Failed to fetch cluster from API", zap.Error(err))
 		return c.reportError(event, "ClusterFetchFailed", err)
 	}
@@ -256,6 +263,12 @@ func (c *Controller) HandleNodePoolEvent(event *sdk.NodePoolEvent) error {
 
 	nodepool, err := apiClient.GetNodePool(ctx, event.NodePoolID)
 	if err != nil {
+		if errors.Is(err, sdk.ErrNotFound) {
+			log.Info("NodePool not found in API, acknowledging event for deleted nodepool",
+				zap.String("nodepool_id", event.NodePoolID),
+			)
+			return nil
+		}
 		log.Error("Failed to fetch nodepool from API", zap.Error(err))
 		return c.reportNodePoolError(event, "NodePoolFetchFailed", err)
 	}
@@ -268,6 +281,12 @@ func (c *Controller) HandleNodePoolEvent(event *sdk.NodePoolEvent) error {
 	// Fetch the parent cluster to get cluster name and other context
 	cluster, err := apiClient.GetCluster(ctx, event.ClusterID)
 	if err != nil {
+		if errors.Is(err, sdk.ErrNotFound) {
+			log.Info("Parent cluster not found in API, acknowledging event for deleted cluster",
+				zap.String("cluster_id", event.ClusterID),
+			)
+			return nil
+		}
 		log.Error("Failed to fetch cluster from API", zap.Error(err))
 		return c.reportNodePoolError(event, "ClusterFetchFailed", err)
 	}
