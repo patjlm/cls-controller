@@ -12,6 +12,7 @@ import (
 	"github.com/apahim/cls-controller/internal/config"
 	"github.com/apahim/cls-controller/internal/controller"
 	"github.com/apahim/cls-controller/internal/sdk"
+	"github.com/go-logr/zapr"
 	"go.uber.org/zap"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -39,6 +40,8 @@ func main() {
 		log.Fatalf("Failed to create logger: %v", err)
 	}
 	defer logger.Sync()
+
+	ctrl.SetLogger(zapr.NewLogger(logger))
 
 	logger.Info("Starting CLS Controller",
 		zap.String("version", Version),

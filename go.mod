@@ -4,6 +4,7 @@ go 1.21
 
 require (
 	cloud.google.com/go/pubsub v1.33.0
+	github.com/go-logr/zapr v1.2.4
 	github.com/spf13/viper v1.16.0
 	github.com/stretchr/testify v1.8.3
 	go.uber.org/zap v1.26.0
